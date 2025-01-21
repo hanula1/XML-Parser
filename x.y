@@ -11,7 +11,9 @@
   int pos = 0;
   int line = 0;
   const int INDENT_LENGTH = 2;
-  const int LINE_WIDTH = 20;
+  const int LINE_WIDTH = 78;
+  char lastLine[MAXSTRLEN] = "";
+  int printed = 0;
 
    void indent(int level);
    void check_tag_matching(const char *start_tag, const char *end_tag);
@@ -54,25 +56,72 @@ element:
       ;
 
 empty_tag: 
-      STAG_BEG ETAG_END { printf("\n"); indent(level); printf("<%s/>", $1); }
+      STAG_BEG ETAG_END { 
+         printf("\n"); 
+         indent(level); 
+         printf("<%s/>", $1); }
       ;
 
 tags_pair: 
-      start_tag content end_tag {check_tag_matching($1, $3);}
+      start_tag content end_tag {
+         check_tag_matching($1, $3);}
       ;
 
 start_tag: 
-      STAG_BEG TAG_END { printf("\n"); indent(level++); printf("<%s>", $1); line = 0;}
+      STAG_BEG TAG_END { 
+         printf("\n"); 
+         indent(level++); 
+         printf("<%s>", $1); 
+         line = 0;
+         pos = 0;}
       ;
 
 end_tag: 
-      ETAG_BEG TAG_END {pos = 0; printf("\n"); indent(--level); printf("</%s>", $1);} 
+      ETAG_BEG TAG_END {
+         if(printed==0) {
+            print_wrapped_text(lastLine, level, &pos, &line);
+            printed = 1;
+         }
+         printf("\n"); 
+         indent(--level); 
+         printf("</%s>", $1);} 
       ; 
 
 word: 
-      CHAR {print_wrapped_text($1, level, &pos, &line);}
-      | word CHAR { print_wrapped_text($2, level, &pos, &line);}
-      | word S {print_wrapped_text($2, level, &pos, &line);}
+      CHAR 
+         { 
+            $$[0] = $1[0];
+            $$[1] = '\0';
+            strcpy(lastLine, $$);
+            printed = 0;}
+
+      | word CHAR 
+         { 
+            int len = strlen($1);
+            strcpy($$, $1); 
+            $$[len] = $2[0];    
+            $$[len + 1] = '\0';
+            if (len + 2 + (level*INDENT_LENGTH) == LINE_WIDTH) { 
+               print_wrapped_text($$, level, &pos, &line);
+               $$[0] = '\0';
+               printed = 1;
+               pos = 0;
+            }
+            else {
+               strcpy(lastLine, $$);
+               printed = 0;
+            }
+         }
+      | word S 
+         {
+            int len = strlen($1);
+            strcpy($$, $1); 
+            $$[len] = $2[0];    
+            $$[len + 1] = '\0';
+            print_wrapped_text($$, level, &pos, &line);
+            $$[0] = '\0';
+            printed = 1;
+            }
       ;
 
 content: 
@@ -81,6 +130,8 @@ content:
     | content word 
     | NEWLINE
     | content NEWLINE
+    | S
+    | content S
     | element
     | content element
     ;
@@ -110,7 +161,7 @@ void indent(int level) {
 
 void check_tag_matching(const char *start_tag, const char *end_tag) {
     if (strcmp(end_tag, start_tag) != 0) {
-        printf("Błąd: Niedopasowany znacznik końcowy '%s'. Oczekiwano '%s'\n", end_tag, start_tag ? start_tag : "brak");
+        printf("\nBłąd: Niedopasowany znacznik końcowy '%s'. Oczekiwano '%s'\n", end_tag, start_tag ? start_tag : "brak");
     }
    //  else {
    //      printf("Dopasowanie znaczników: <%s> i </%s>\n", end_tag, start_tag);
@@ -121,16 +172,16 @@ void print_wrapped_text(const char *text, int level, int *pos, int* line) {
     int word_len = strlen(text);
     int indent_width = level * INDENT_LENGTH;
 
+    if(*line==0 && *pos==0){
+      printf("\n");
+      indent(level);
+    }
+
    if (*pos + indent_width + word_len > LINE_WIDTH) {
         printf("\n");
         indent(level);
         *pos = 0;
-        line++;
-    }
-
-    if(*line==0 && *pos==0){
-      printf("\n");
-      indent(level);
+        (*line)++;
     }
 
     printf("%s", text);
