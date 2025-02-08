@@ -1,7 +1,7 @@
 # XML Parser
 
 ## Description
-A simple XML parser written in C for Linux. It processes `.x.l` and `.x.y` files.
+A simple XML parser written in C for Linux. It processes `x.l` and `x.y` files.
 
 ## Requirements
 - Linux OS  
